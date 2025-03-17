@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF Web Editor</title>
+    <script src="https://cdn.tiny.cloud/1/apygplo96svmu67kl3jeheb10w2vrnby7h7vfkkfallnddpz/tinymce/6/tinymce.min.js" referrerpolicy="origin"></script>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #6366F1;
+            --primary-hover: #4F46E5;
+            --secondary-color: #10B981;
+            --secondary-hover: #059669;
+            --background-color: #F8FAFC;
+            --card-background: #FFFFFF;
+            --text-primary: #1E293B;
+            --text-secondary: #64748B;
+            --border-color: #E2E8F0;
+            --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        }
+
+        body {
+            background-color: var(--background-color);
+            color: var(--text-primary);
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.5;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem 1rem;
+        }
+
+        .editor-container {
+            min-height: 600px;
+            border: 2px solid var(--border-color);
+            border-radius: 1rem;
+            margin: 1.5rem 0;
+            background: var(--card-background);
+            display: none;
+            box-shadow: var(--shadow-md);
+            transition: all 0.3s ease;
+            overflow: hidden;
+        }
+
+        .editor-container:hover {
+            border-color: var(--primary-color);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .pdf-content {
+            font-family: 'Inter', sans-serif;
+            line-height: 1.7;
+            padding: 1.5rem;
+            color: var(--text-primary);
+        }
+
+        .pdf-content p {
+            margin-bottom: 1.25rem;
+            text-align: justify;
+            color: var(--text-primary);
+        }
+
+        .pdf-content h2 {
+            color: var(--text-primary);
+            margin-top: 2rem;
+            margin-bottom: 1.25rem;
+            font-size: 1.75rem;
+            font-weight: 600;
+        }
+
+        .loading {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.95);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            backdrop-filter: blur(4px);
+        }
+
+        .loading.active {
+            display: flex;
+        }
+
+        .loading-content {
+            background: var(--card-background);
+            padding: 2.5rem;
+            border-radius: 1rem;
+            box-shadow: var(--shadow-lg);
+            text-align: center;
+            max-width: 400px;
+            width: 90%;
+        }
+
+        .loading-spinner {
+            width: 48px;
+            height: 48px;
+            border: 4px solid var(--border-color);
+            border-top-color: var(--primary-color);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 1.5rem;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* TinyMCE Editor Styles */
+        .tox-tinymce {
+            border: none !important;
+            border-radius: 1rem !important;
+            box-shadow: var(--shadow-md) !important;
+        }
+
+        .tox .tox-toolbar__group {
+            padding: 0 5px !important;
+            border-color: var(--border-color) !important;
+        }
+
+        .tox .tox-tbtn {
+            margin: 0 2px !important;
+            border-radius: 0.375rem !important;
+            transition: all 0.2s ease !important;
+            color: var(--text-primary) !important;
+        }
+
+        .tox .tox-tbtn:hover {
+            background-color: var(--primary-color) !important;
+            color: white !important;
+        }
+
+        .tox .tox-tbtn--enabled {
+            background-color: var(--primary-color) !important;
+            color: white !important;
+        }
+
+        #editor {
+            min-height: 600px;
+            padding: 1.5rem;
+        }
+
+        .export-btn {
+            display: none;
+            background-color: var(--secondary-color);
+            color: white;
+            padding: 0.875rem 1.75rem;
+            border-radius: 0.75rem;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            box-shadow: var(--shadow-md);
+            font-size: 1rem;
+        }
+
+        .export-btn:hover {
+            background-color: var(--secondary-hover);
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .upload-container {
+            background: var(--card-background);
+            border: 2px dashed var(--border-color);
+            border-radius: 1rem;
+            padding: 3rem 2rem;
+            text-align: center;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            margin-bottom: 2rem;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .upload-container:hover {
+            border-color: var(--primary-color);
+            background-color: rgba(99, 102, 241, 0.05);
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-md);
+        }
+
+        .upload-icon {
+            width: 64px;
+            height: 64px;
+            color: var(--primary-color);
+            margin-bottom: 1.5rem;
+            transition: transform 0.3s ease;
+        }
+
+        .upload-container:hover .upload-icon {
+            transform: scale(1.1);
+        }
+
+        .upload-text {
+            color: var(--text-primary);
+            font-size: 1.25rem;
+            font-weight: 500;
+            margin-bottom: 0.75rem;
+        }
+
+        .upload-hint {
+            color: var(--text-secondary);
+            font-size: 1rem;
+        }
+
+        /* Table Styles */
+        table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            margin: 1.5rem 0;
+            border-radius: 0.5rem;
+            overflow: hidden;
+            box-shadow: var(--shadow-sm);
+        }
+
+        table td, table th {
+            border: 1px solid var(--border-color);
+            padding: 1rem;
+        }
+
+        table th {
+            background-color: var(--primary-color);
+            color: white;
+            font-weight: 500;
+        }
+
+        table tr:nth-child(even) {
+            background-color: rgba(99, 102, 241, 0.05);
+        }
+
+        table tr:hover {
+            background-color: rgba(99, 102, 241, 0.1);
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .container {
+                padding: 1rem;
+            }
+
+            .editor-container {
+                min-height: 400px;
+            }
+
+            #editor {
+                min-height: 400px;
+            }
+
+            .tox .tox-toolbar__group {
+                padding: 0 2px !important;
+            }
+
+            .tox .tox-tbtn {
+                margin: 0 1px !important;
+            }
+
+            .upload-container {
+                padding: 2rem 1rem;
+            }
+
+            .upload-icon {
+                width: 48px;
+                height: 48px;
+            }
+
+            .upload-text {
+                font-size: 1.125rem;
+            }
+
+            .upload-hint {
+                font-size: 0.875rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="text-4xl font-bold text-center mb-8 text-gray-800">PDF Web Editor</h1>
+        
+        <div class="bg-white rounded-xl shadow-lg p-6">
+            <div class="mb-6">
+                <label class="upload-container block cursor-pointer">
+                    <svg class="upload-icon mx-auto" fill="currentColor" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+                        <path d="M16.88 9.1A4 4 0 0 1 16 17H5a5 5 0 0 1-1-9.9V7a3 3 0 0 1 4.52-2.59A4.98 4.98 0 0 1 17 8c0 .38-.04.74-.12 1.1z" />
+                    </svg>
+                    <div class="upload-text">Select a PDF file</div>
+                    <div class="upload-hint">or drag and drop your file here</div>
+                    <input type="file" class="hidden" id="pdf-upload" accept=".pdf" />
+                </label>
+            </div>
+
+            <div id="editor-container" class="editor-container">
+                <textarea id="editor"></textarea>
+            </div>
+
+            <div class="flex justify-end space-x-4 mt-6">
+                <button id="export-btn" class="export-btn">
+                    Export to PDF
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="loading" class="loading">
+        <div class="loading-content">
+            <div class="loading-spinner"></div>
+            <div class="text-xl font-semibold text-gray-800">Processing...</div>
+            <div class="text-sm text-gray-600 mt-2">Please wait while we process your request</div>
+        </div>
+    </div>
+
+    <script>
+        let editor = null;
+
+        // Initialize TinyMCE
+        function initEditor(content = '') {
+            if (editor) {
+                editor.remove();
+            }
+
+            tinymce.init({
+                selector: '#editor',
+                height: 600,
+                plugins: [
+                    'advlist', 'autolink', 'lists', 'link', 'image', 'charmap', 'preview',
+                    'anchor', 'searchreplace', 'visualblocks', 'code', 'fullscreen',
+                    'insertdatetime', 'media', 'table', 'paste', 'code', 'help', 'wordcount'
+                ],
+                toolbar: 'undo redo | formatselect | bold italic underline strikethrough | alignleft aligncenter alignright alignjustify | bullist numlist outdent indent | link image media table | removeformat | help',
+                menubar: 'file edit view insert format tools table help',
+                content_style: `
+                    body { 
+                        font-family: Arial, sans-serif; 
+                        line-height: 1.6; 
+                        font-size: 14px; 
+                        font-weight: normal !important; 
+                    } 
+                    p, h1, h2, h3, h4, h5, h6, li, td, th { 
+                        font-weight: normal !important; 
+                    } 
+                    img { 
+                        max-width: 100%; 
+                        height: auto; 
+                        margin: 1rem 0; 
+                        display: block;
+                        margin-left: auto;
+                        margin-right: auto;
+                    } 
+                    table { 
+                        border-collapse: collapse; 
+                        width: 100%; 
+                        margin: 1rem 0; 
+                    } 
+                    table td, table th { 
+                        border: 1px solid #ddd; 
+                        padding: 8px; 
+                    } 
+                    table tr:nth-child(even) { 
+                        background-color: #f9fafb; 
+                    }
+                `,
+                paste_as_text: false,
+                paste_word_valid_elements: "p,b,strong,i,em,h1,h2,h3,h4,h5,h6,ul,ol,li,table,tr,td,th,thead,tbody,img",
+                paste_retain_style_properties: "all",
+                paste_remove_styles: false,
+                paste_remove_styles_if_webkit: false,
+                paste_strip_class_attributes: "none",
+                paste_merge_formats: true,
+                paste_convert_word_fake_lists: false,
+                forced_root_block: 'p',
+                remove_script_host: false,
+                convert_urls: false,
+                relative_urls: true,
+                remove_trailing_brs: false,
+                verify_html: false,
+                valid_elements: '*[*]',
+                extended_valid_elements: '*[*]',
+                valid_children: '+body[style]',
+                images_upload_url: '/upload-image',
+                images_upload_handler: function (blobInfo, success, failure) {
+                    var xhr, formData;
+                    xhr = new XMLHttpRequest();
+                    xhr.withCredentials = false;
+                    xhr.open('POST', '/upload-image');
+                    xhr.onload = function() {
+                        var json;
+                        if (xhr.status != 200) {
+                            failure('HTTP Error: ' + xhr.status);
+                            return;
+                        }
+                        try {
+                            json = JSON.parse(xhr.responseText);
+                            if (!json || typeof json.location != 'string') {
+                                failure('Invalid JSON: ' + xhr.responseText);
+                                return;
+                            }
+                            success(json.location);
+                        } catch (e) {
+                            failure('Invalid JSON: ' + xhr.responseText);
+                        }
+                    };
+                    xhr.onerror = function() {
+                        failure('Network error occurred while uploading image');
+                    };
+                    formData = new FormData();
+                    formData.append('file', blobInfo.blob(), blobInfo.filename());
+                    xhr.send(formData);
+                },
+                image_advtab: true,
+                image_dimensions: true,
+                image_class_list: [
+                    {title: 'Responsive', value: 'img-responsive'},
+                    {title: 'Thumbnail', value: 'img-thumbnail'}
+                ],
+                automatic_uploads: true,
+                file_picker_types: 'image',
+                file_picker_callback: function(callback, value, meta) {
+                    var input = document.createElement('input');
+                    input.setAttribute('type', 'file');
+                    input.setAttribute('accept', 'image/*');
+                    input.onchange = function() {
+                        var file = this.files[0];
+                        var reader = new FileReader();
+                        reader.onload = function() {
+                            var id = 'blobid' + (new Date()).getTime();
+                            var blobCache = tinymce.activeEditor.editorUpload.blobCache;
+                            var base64 = reader.result.split(',')[1];
+                            var blobInfo = blobCache.create(id, file, base64);
+                            blobCache.add(blobInfo);
+                            callback(blobInfo.blobUri(), { title: file.name });
+                        };
+                        reader.readAsDataURL(file);
+                    };
+                    input.click();
+                },
+                table_default_styles: {
+                    width: '100%',
+                    'border-collapse': 'collapse',
+                    'margin': '1rem 0'
+                },
+                table_class_list: [
+                    {title: 'Default', value: ''},
+                    {title: 'Striped', value: 'table-striped'},
+                    {title: 'Bordered', value: 'table-bordered'}
+                ],
+                table_grid: true,
+                table_responsive_width: true,
+                table_resize_bars: true,
+                table_column_resizing: 'resizetable',
+                table_row_advtab: true,
+                table_col_advtab: true,
+                table_cell_advtab: true,
+                table_row_limit: 100,
+                table_col_limit: 100,
+                table_cell_limit: 100,
+                table_row_height: 30,
+                table_col_width: 100,
+                table_cell_vertical_alignment: 'middle',
+                table_cell_horizontal_alignment: 'left',
+                table_cell_padding: 8,
+                table_cell_spacing: 0,
+                table_cell_border_width: 1,
+                table_cell_border_color: '#ddd',
+                table_cell_background_color: '#ffffff',
+                table_header_background_color: '#f9fafb',
+                table_row_alternating_background_color: '#f9fafb',
+                setup: function(editor) {
+                    editor.on('init', function() {
+                        editor.getContainer().style.transition = "border-color 0.15s ease-in-out";
+                        if (content) {
+                            console.log('Setting content:', content); // Debug log
+                            editor.setContent(content);
+                            // Ensure images are properly sized after content is loaded
+                            editor.dom.select('img').forEach(function(img) {
+                                img.style.maxWidth = '100%';
+                                img.style.height = 'auto';
+                                img.style.margin = '1rem auto';
+                                img.style.display = 'block';
+                            });
+                        }
+                    });
+                }
+            });
+        }
+
+        // Show loading indicator
+        function showLoading() {
+            document.getElementById('loading').classList.add('active');
+        }
+
+        // Hide loading indicator
+        function hideLoading() {
+            document.getElementById('loading').classList.remove('active');
+        }
+
+        // Handle file upload
+        document.getElementById('pdf-upload').addEventListener('change', async function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            showLoading();
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                const response = await fetch('/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                if (data.success) {
+                    // Show editor container and export button
+                    document.getElementById('editor-container').style.display = 'block';
+                    document.getElementById('export-btn').style.display = 'block';
+                    
+                    // Initialize editor with content
+                    initEditor(data.html_content);
+                } else {
+                    throw new Error(data.error || 'Error uploading file');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error uploading file: ' + error.message);
+            } finally {
+                hideLoading();
+            }
+        });
+
+        // Handle export
+        document.getElementById('export-btn').addEventListener('click', async function() {
+            showLoading();
+            try {
+                // Get the editor instance
+                const editor = tinymce.get('editor');
+                if (!editor) {
+                    throw new Error('Editor not initialized');
+                }
+
+                // Get the content
+                const content = editor.getContent();
+                
+                // Create the request
+                const response = await fetch('/export', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ 
+                        html_content: content,
+                        title: 'edited_document.pdf'
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                // Get the blob from the response
+                const blob = await response.blob();
+                
+                // Create a URL for the blob
+                const url = window.URL.createObjectURL(blob);
+                
+                // Create a temporary link element
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'edited_document.pdf';
+                
+                // Append to body, click, and cleanup
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+            } catch (error) {
+                console.error('Export error:', error);
+                alert('Error exporting PDF: ' + error.message);
+            } finally {
+                hideLoading();
+            }
+        });
+    </script>
+</body>
+</html> 
